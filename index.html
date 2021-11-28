@@ -1,444 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D3 Air Quality Static Viz</title>
-    <script src="d3.js"></script>
-    <script src="topojson.js"></script>
-    <style>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D3 Air Quality Static Viz</title>
+  <script src="d3.js"></script>
+  <script src="topojson.js"></script>
+  <style>
     .caption
-    {       
-        margin: auto;
-        padding-top: 1%;
-        padding-bottom: 1%;
-        padding-left: 4%;
-/*        font-family: serif;
-        font-size: 20pt;*/
-    }
-
-    #summary2019
     {
-        float: left;
+      margin: auto;
+      padding-top: .2%;
+      padding-bottom: .2%;
+      padding-left: 4%;
+      /*        font-family: serif;
+              font-size: 20pt;*/
     }
-    #summary2020
+    #march2019
     {
-        padding-left: 50%;
+      float: left;
     }
     #march2020
     {
-        float: left;
+      padding-left: 50%;
     }
-    #dec2020
+    #december2019
     {
-        padding-left: 50%;
+      float: left;
+    }
+    #december2020
+    {
+      padding-left: 50%;
     }
     #tooltip
     {
-        opacity: 0;
-        background-color: black;
-        color: #fff;
-        position: absolute;
-        width: 150px;
-        text-align: center;
-        padding: 5px 0;
-        border-radius: 6px;
+      opacity: 0;
+      background-color: black;
+      color: #fff;
+      position: absolute;
+      width: 150px;
+      text-align: center;
+      padding: 5px 0;
+      border-radius: 6px;
     }
-
     .tooltipData
     {
-        font-size: small;
+      font-size: small;
     }
-
     path.path_geo:hover
     {
-    stroke: black;
-    stroke-width: 2px;
+      stroke: black;
+      stroke-width: 2px;
     }
-
     .svgMap
     {
-        width: 100%;
-        height: 100%;
-        background: #fcfcfc;
+      width: 100%;
+      height: 100%;
+      background: #fcfcfc;
     }
-
     path.path_geo
     {
-        stroke-width: .5px;
-        stroke: black;
+      stroke-width: .5px;
+      stroke: black;
     }
-    #mar2020AQI
+    path.path_geo_state
     {
-        float: left;
+      stroke-width: .5px;
+      stroke: black;
+      fill: none;
+      opacity: .6;
     }
-
-    </style>
+  </style>
 </head>
-
 <body>
-    <h1>Static Visualization US Air Quality Index by Metropolitan Area</h1>
+<h1>US Air Quality Index by Metropolitan Area; The Pandemic's Impact and Air Quality</h1>
+<div id="march2019" class = "caption">
+  <h2>US AVG. AQI for March 2019</h2></div>
+<div id="march2020" class = "caption">
+  <h2>US AVG. AQI for March 2020</h2>
+</div>
+<svg id="marchAQIMap" class="svgMap" viewBox="0 0 1500 400"></svg>
+<p>In March of 2020 the president declares a nationwide emergency and the country begins to shut down to prevent the spread of COVID-19. Air Quality Index levels across the country are down as less people are traveling.</p>
 
-    <div id="summary2019" class = "caption">
-        <h2>US AQI 2019 Summary</h2></div>
+<div id="december2019" class = "caption">
+  <h2>US AVG. AQI for December 2019</h2></div>
+<div id="december2020" class = "caption">
+  <h2>US AVG. AQI for December 2020</h2>
+</div>
+<svg id="decemberAQIMap" class="svgMap" viewBox="0 0 1500 400"></svg>
+<p>In December of 2020 the FDA issues an Emergency Use Authorization for the first COVID-19 vaccine. After the one year anniversary of the break out, states have rolled out re-opening plans and people are begining to travel again. As a result the Air Quality Index levels are closer to normal levels.</p>
 
-    <div id="summary2020" class = "caption"> 
-        <h2>US AQI 2020 Summary</h2></div>
-
-    <svg id="AQI_CBSA_Map" class="svgMap" viewBox="0 0 1500 400"></svg>
-
-    <div id="march2020" class = "caption"> 
-        <h2>US AVG. AQI for March 2020</h2>
-    </div>
-
-    <div id="dec2020" class = "caption">
-        <h2>US AVG. AQI for December 2020</h2>
-    </div>
-
-    <svg id="month2020AQIMap" class="svgMap" viewBox="0 0 1500 400"></svg>
-
-        <p>In March of 2020 the president declares a nationwide emergency and the country begins to shut down to prevent the spread of COVID-19. Air Quality Index levels across the country are down as less people are traveling.</p>
-        <p>In December of 2020 the FDA issues an Emergency Use Authorization for the first COVID-19 vaccine. After the one year anniversary of the break out, states have rolled out re-opening plans and people are begining to travel again. As a result the Air Quality Index levels are closer to normal levels.</p>
-    
-    <div id="tooltip"></div>
+<div id="tooltip"></div>
 
 <script>
+  // dimension of the page
+  const window_dims =
+          {
+            width: window.innerWidth,
+            height: window.innerHeight
+          };
+  const margin = window_dims.width * .2
 
-    // dimension of the page
-    const window_dims = 
-    {
-        width: window.innerWidth,
-        height: window.innerHeight
-    };
-    const margin = window_dims.width * .2
+  // DATA SOURCES:
+  // US Census Shapefiles: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
+  // US EPA AirQuality Pre-generated data files: https://aqs.epa.gov/aqsweb/airdata/download_files.html#Annual
+  // https://aqs.epa.gov/aqsweb/airdata/download_files.html#AQI
 
-    // DATA SOURCES: 
-    // US Census Shapefiles: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
-    // US EPA AirQuality Pre-generated data files: https://aqs.epa.gov/aqsweb/airdata/download_files.html#Annual
+  // Source 1: US Census CBSA(Core-Based Statistical Areas) - Metropolitan/Micropolitan - shapefile converted to topojson and simplified using https://mapshaper.org/
+  let topojsonCBSA = "./data/us_cbsa_simple_topo.json";
 
-    // Source 1: US Census CBSA(Core-Based Statistical Areas) - Metropolitan/Micropolitan - shapefile converted to topojson and simplified using https://mapshaper.org/
-    let topojsonCBSA = "./data/us_cbsa_simple_topo.json";
+  // source 2: US EPA AirQuality Pre-generated data - avg aqi by cbsa for march 2019
+  let avgAQIMarch2019 = "./data/monthly_CBSA_2019/month03.csv";
 
-    // source 2: US EPA AirQuality Pre-generated data - annual aqi by cbsa 2019
-    let annual_aqi_by_cbsa_2019 = "./data/annual_aqi_by_cbsa_2019.csv";
+  // source 3: US EPA AirQuality Pre-generated data - avg aqi by cbsa for december 2019
+  let avgAQIDecember2019 = "./data/monthly_CBSA_2019/month12.csv";
 
-    // source 3: US EPA AirQuality Pre-generated data - annual aqi by cbsa 2020
-    let annual_aqi_by_cbsa_2020 = "./data/annual_aqi_by_cbsa_2020.csv";
+  //source 4: average AQI for March 2020
+  let avgAQIMarch2020 = "./data/monthly_CBSA_2020/month03.csv";
 
-    //source 4: average AQI for March 2020
-    let avgAQIMarch2020 = "./data/monthly_CBSA_2020/month03.csv"
+  //source 5: average AQI for December 2020
+  let avgAQIDecember2020 = "./data/monthly_CBSA_2020/month12.csv";
 
-    //source 5: average AQI for December 2020
-    let avgAQIDecember2020 = "./data/monthly_CBSA_2020/month12.csv"
+  //source 6: US Census State shapefile converted to topojson and simplified using https://mapshaper.org
+  let topojsonState = "./data/us_state_simple_topo.json";
 
-    // use a map projection then scale and translate to the center of the screen
-    let projection = d3.geoAlbersUsa().scale(800).translate([300,200])
+  //source 7: average AQI for April 2019
+  let avgAQIApril2019 = "./data/monthly_CBSA_2019/month04.csv";
 
-    // use a promise function to load all data files and then perform actions defined by main function
-    Promise.all(
-        [
+  //source 8: average AQI for April 2020
+  let avgAQIApril2020 = "./data/monthly_CBSA_2020/month04.csv";
+
+  // use a map projection then scale and translate to the center of the screen
+  let projection = d3.geoAlbersUsa().scale(800).translate([300,200])
+
+  // use a promise function to load all data files and then perform actions defined by main function
+  Promise.all(
+          [
             d3.json(topojsonCBSA), // data[0]
-            d3.csv(annual_aqi_by_cbsa_2019), // data[1]
-            d3.csv(annual_aqi_by_cbsa_2020), // data[2]
+            d3.csv(avgAQIMarch2019), // data[1]
+            d3.csv(avgAQIDecember2019), // data[2]
             d3.csv(avgAQIMarch2020), //data[3]
-            d3.csv(avgAQIDecember2020)]).then(main) 
+            d3.csv(avgAQIDecember2020), //data[4]
+            d3.json(topojsonState), //data[5]
+            d3.csv(avgAQIApril2019), //data[6]
+            d3.csv(avgAQIApril2020)]).then(function (data){
+              choroplethMap(data,data[1],'#marchAQIMap',"translate(0,0)")
+              choroplethMap(data,data[3],'#marchAQIMap',"translate(700,0)")
+              choroplethMap(data,data[6],'#aprilAQIMap',"translate(0,0)")
+              choroplethMap(data,data[7],'#aprilAQIMap',"translate(700,0)")
+              choroplethMap(data,data[2],'#decemberAQIMap',"translate(0,0)")
+              choroplethMap(data,data[4],'#decemberAQIMap',"translate(700,0)")
+              legendAQI('#marchAQIMap',"translate(550,245)") // bottom right 1210,245
+              legendAQI('#decemberAQIMap',"translate(550,245)") // bottom right 1210,245
+  })
 
-    function main(data){
-        // print data to console to see how it is organized and named
-        //console.log(data[0]);
-        //console.log(data[1]);
-        //console.log(data[2]);
-        //console.log(data[3]);
+  // function to create legend for EPA AQI official color categories, pass in div id where legend will take place
+  // modified code from https://www.d3-graph-gallery.com/graph/custom_legend.html
+  function legendAQI(divID,translate){
+    let mapLegend = d3.select(divID).append("g")
+            .attr("transform", translate)
+    let keys = ["Good 0-50","Moderate 51-100","Unhealthy for Sensitive Groups 101-150","Unhealthy 151-200","Very Unhealthy 201-300","Hazardous 301-500"]
+    let color = d3.scaleOrdinal()
+      .domain(keys)
+      .range(["#00e400","#ffff00","#ff7e00","#ff0000","#8f3f97","#7e0023"]);
+    let size = 15
+    mapLegend.selectAll("mydots")
+      .data(keys)
+      .enter()
+      .append("rect")
+        .attr("x", 0)
+        .attr("y", function(d,i){return 10 + i*(size+5)}) // 100 is where the first dot appears. 25 is the distance between dots
+        .attr("width", size)
+        .attr("height", size)
+        .style("fill", function(d){return color(d)})
+    mapLegend.selectAll("myLabels")
+      .data(keys)
+      .enter()
+      .append("text")
+        .attr("x", 10 + size*1.2)
+        .attr("y", function(d,i){return 15 + i*(size+5) + (size/2)})
+        .style("fill", "black")
+        .text(function(d){return d})
+        .attr("text-anchor", "left")
+        .style("alignment-baseline", "middle")
 
-        // convert topojson to geojson features using topojson.feature()
-        let geojsonCBSA = topojson.feature(data[0],data[0].objects.us_cbsa_simple_topo).features;
+  }
 
-        // use the map projection
-        let geoPath = d3.geoPath().projection(projection);
-/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-        // the Air Quality Data in groups of CBSA 
-        let aqi_cbsa_2019 = d3.group(data[1], function(d){return d["CBSA Code"];})
+  // function to draw a Choropleth Map of AQI data
+  function choroplethMap(data,aqiDataFile,divID,translate){
+    // convert topojson to geojson features using topojson.feature()
+    let geojsonCBSA = topojson.feature(data[0],data[0].objects.us_cbsa_simple_topo).features;
 
-        // set a range for 90th percentile aqi
-        let AQI_CBSA_2019_extent = d3.extent(data[1], function(d){
-            return +d["90th Percentile AQI"]
-        })
-        
-        let colorScale_AQI_CBSA_2019 = d3.scaleQuantize()
-            .domain(AQI_CBSA_2019_extent)
-            // diverging RdYlGn from https://observablehq.com/@d3/color-schemes
-            .range(["#a50026","#a70226","#a90426","#ab0626","#ad0826","#af0926","#b10b26","#b30d26","#b50f26","#b61127","#b81327","#ba1527","#bc1727","#be1927","#c01b27","#c21d28","#c41f28","#c52128","#c72328","#c92529","#cb2729","#cc2929","#ce2b2a","#d02d2a","#d12f2b","#d3312b","#d4332c","#d6352c","#d7382d","#d93a2e","#da3c2e","#dc3e2f","#dd4030","#de4331","#e04532","#e14733","#e24a33","#e34c34","#e44e35","#e55136","#e75337","#e85538","#e95839","#ea5a3a","#eb5d3c","#ec5f3d","#ed613e","#ed643f","#ee6640","#ef6941","#f06b42","#f16e43","#f17044","#f27346","#f37547","#f37848","#f47a49","#f57d4a","#f57f4b","#f6824d","#f6844e","#f7864f","#f78950","#f88b51","#f88e53","#f89054","#f99355","#f99556","#f99858","#fa9a59","#fa9c5a","#fa9f5b","#fba15d","#fba35e","#fba660","#fba861","#fcaa62","#fcad64","#fcaf65","#fcb167","#fcb368","#fcb56a","#fdb86b","#fdba6d","#fdbc6e","#fdbe70","#fdc071","#fdc273","#fdc474","#fdc676","#fdc878","#fdca79","#fecc7b","#fecd7d","#fecf7e","#fed180","#fed382","#fed584","#fed685","#fed887","#feda89","#fedb8b","#fedd8d","#fede8f","#fee090","#fee192","#fee394","#fee496","#fee698","#fee79a","#fee89b","#feea9d","#feeb9f","#feeca0","#feeda2","#feeea3","#fdefa5","#fdf0a6","#fdf1a7","#fdf2a9","#fcf3aa","#fcf4ab","#fcf5ab","#fbf5ac","#fbf6ad","#faf6ad","#faf7ad","#f9f7ae","#f8f7ae","#f7f8ad","#f7f8ad","#f6f8ad","#f5f8ac","#f4f8ab","#f3f8ab","#f1f8aa","#f0f7a9","#eff7a8","#eef7a6","#edf6a5","#ebf6a4","#eaf6a2","#e8f5a1","#e7f59f","#e6f49d","#e4f39c","#e2f39a","#e1f298","#dff297","#def195","#dcf093","#daef92","#d9ef90","#d7ee8e","#d5ed8d","#d3ec8b","#d2ec89","#d0eb88","#ceea86","#cce985","#cae983","#c8e882","#c6e780","#c4e67f","#c2e57e","#c0e47c","#bee47b","#bce37a","#bae279","#b8e178","#b6e076","#b4df75","#b2de74","#b0dd73","#aedc72","#acdb71","#a9da70","#a7d970","#a5d86f","#a3d86e","#a0d76d","#9ed66c","#9cd56c","#99d36b","#97d26b","#95d16a","#92d069","#90cf69","#8ece68","#8bcd68","#89cc67","#86cb67","#84ca66","#81c966","#7fc866","#7cc665","#79c565","#77c464","#74c364","#71c263","#6fc063","#6cbf62","#69be62","#67bd62","#64bc61","#61ba60","#5eb960","#5cb85f","#59b65f","#56b55e","#53b45e","#51b25d","#4eb15c","#4baf5c","#48ae5b","#46ad5a","#43ab5a","#40aa59","#3da858","#3ba757","#38a557","#36a456","#33a255","#31a154","#2e9f54","#2c9d53","#2a9c52","#289a51","#259950","#23974f","#21954f","#1f944e","#1e924d","#1c904c","#1a8f4b","#188d4a","#178b49","#158948","#148747","#128646","#118446","#108245","#0e8044","#0d7e43","#0c7d42","#0b7b41","#0a7940","#08773f","#07753e","#06733d","#05713c","#04703b","#036e3a","#026c39","#016a38","#006837"].reverse());
-    
-        // Append a SVG element to body, then append a path for the boundaries
-        let mapAQI_CBSA_2019 = d3.select('#AQI_CBSA_Map').append("g")
-            .attr("width", "50%")
-            .attr("height", "50%");
-        // select all path elements
-        mapAQI_CBSA_2019.selectAll('path')
-        // load our map data
-        .data(geojsonCBSA)
-        .enter()
-        .append('path')
-        // use a class for styling
-        .attr("class","path_geo")
-        // draw the map
-        .attr("d",geoPath)
-        // before the animation, start with white map
-        .attr("fill","white")
-        // tooltip
-        .on("mousemove",function (mouseData,d){
-            d3.select('#tooltip')
-                .style("opacity",.6)
-                .style("left",(mouseData.clientX+10).toString()+"px")
-                .style("top",(mouseData.clientY+10).toString()+"px")
-                .html(
-                    "<div class='tooltipData'>CBSA: "+aqi_cbsa_2019.get(d.properties.GEOID)[0].CBSA+"</div>" +
-                    "<div class='tooltipData'>90th Percentile AQI: "+aqi_cbsa_2019.get(d.properties.GEOID)[0]["90th Percentile AQI"]+"</div>" +
-                    "<div class='tooltipData'>Median AQI: "+aqi_cbsa_2019.get(d.properties.GEOID)[0]["Median AQI"]+"</div>" +
-                    "<div class='tooltipData'>Max AQI: "+aqi_cbsa_2019.get(d.properties.GEOID)[0]["Max AQI"]+"</div>")
-        })
-        .on("mouseout", function (){
-            d3.select('#tooltip')
-                .style("opacity",0)      
-        })      
-        // animation
-        // .transition()
-        // .delay(function(d,i){return i*2})
-        // .duration(800)
-        // fill with color 
-        .style("fill", function(d){
-            try{
-                return colorScale_AQI_CBSA_2019(parseInt(aqi_cbsa_2019.get(d.properties.GEOID)[0]["90th Percentile AQI"]));
-            }
-            catch(error){
+    // convert State topojson to geojson features using topojson.feature()
+    let geojsonSTATE = topojson.feature(data[5],data[5].objects.cb_2020_us_state_500k).features;
+
+    // use the map projection
+    let geoPath = d3.geoPath().projection(projection);
+
+    // the Air Quality Data in groups of CBSA
+    let aqi_cbsa_group = d3.group(aqiDataFile, function(d){return d["CBSA Code"];})
+
+    // official EPA color scale https://docs.airnowapi.org/aq101
+    let aqiColorCode = [d3.range(0,51),d3.range(51,101),d3.range(101,151),d3.range(151,201),d3.range(201,301),d3.range(301,500)];
+    let aqiColor = d3.scaleThreshold()
+            .domain([51,101,151,201,301])
+            .range(["#00e400","#ffff00","#ff7e00","#ff0000","#8f3f97","#7e0023"])
+
+    // Append a SVG element to body, then append a path for the boundaries
+    let mapAQI_CBSA = d3.select(divID).append("g")
+            .attr("transform", translate);
+    // append another group for state lines
+    let mapAQI_STATE = d3.select(divID).append("g")
+            .attr("transform", translate);
+
+    // select all path elements for state lines, draw state borders
+    mapAQI_STATE.selectAll('path')
+            // load our map data
+            .data(geojsonSTATE)
+            .enter()
+            .append('path')
+            // use a class for styling
+            .attr("class","path_geo_state")
+            // draw the map
+            .attr("d",geoPath)
+
+    // select all path elements draw CBSA
+    mapAQI_CBSA.selectAll('path')
+            // load our map data
+            .data(geojsonCBSA)
+            .enter()
+            .append('path')
+            // use a class for styling
+            .attr("class","path_geo")
+            // draw the map
+            .attr("d",geoPath)
+            // before the animation, start with white map
+            .attr("fill","white")
+            // tooltip
+            .on("mousemove",function (mouseData,d){
+              try {
+                d3.select('#tooltip')
+                        .style("opacity", .6)
+                        .style("left", (mouseData.clientX + window.pageXOffset).toString() + "px")
+                        .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
+                        .html(
+                                "<div class='tooltipData'>Metro Area: "+aqi_cbsa_group.get(d.properties.GEOID)[0].CBSA+"</div>" +
+                                "<div class='tooltipData'>Avg AQI: "+Math.round(aqi_cbsa_group.get(d.properties.GEOID)[0].AQI)+"</div>")
+              }
+              catch(error){
+                d3.select('#tooltip')
+                        .style("opacity", .6)
+                        .style("left", (mouseData.clientX + window.pageXOffset).toString() + "px")
+                        .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
+                        .html(
+                                "<div class='tooltipData'>CBSA: " + d.properties.GEOID + "  " + d.properties.NAMELSAD + "  " + " NO DATA" + "</div>")
+
+              }
+            })
+            .on("mouseout", function (){
+              d3.select('#tooltip')
+                      .style("opacity",0)
+            })
+            // animation
+            // .transition()
+            // .delay(function(d,i){return i*2})
+            // .duration(800)
+            // fill with color
+            .style("fill", function(d){
+              try{
+                return aqiColor(parseInt(aqi_cbsa_group.get(d.properties.GEOID)[0].AQI));
+              }
+              catch(error){
                 //console.log(error);
                 return "white"
-            }
-        })
-/*        // zoom feature
-        d3.select('#AQI_CBSA_Map').call(d3.zoom()
-        .extent([[0,0],[1500,400]])
-        .scaleExtent([1,8])
-        .on("zoom",zoomed)
-        )
-        function zoomed({transform}){
-            mapAQI_CBSA_2019.attr("transform",transform)
-        }*/
-/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-        // make another map AQI_CBSA_2020
-        // the Air Quality Data in groups of CBSA 
-        let aqi_cbsa_2020 = d3.group(data[2], function(d){return d["CBSA Code"];})
-
-        // set a range for 90th percentile aqi
-        let AQI_CBSA_2020_extent = d3.extent(data[2], function(d){
-            return +d["90th Percentile AQI"]
-        })
-        
-        let colorScale_AQI_CBSA_2020 = d3.scaleQuantize()
-            .domain(AQI_CBSA_2020_extent)
-            // diverging RdYlGn from https://observablehq.com/@d3/color-schemes
-            .range(["#a50026","#a70226","#a90426","#ab0626","#ad0826","#af0926","#b10b26","#b30d26","#b50f26","#b61127","#b81327","#ba1527","#bc1727","#be1927","#c01b27","#c21d28","#c41f28","#c52128","#c72328","#c92529","#cb2729","#cc2929","#ce2b2a","#d02d2a","#d12f2b","#d3312b","#d4332c","#d6352c","#d7382d","#d93a2e","#da3c2e","#dc3e2f","#dd4030","#de4331","#e04532","#e14733","#e24a33","#e34c34","#e44e35","#e55136","#e75337","#e85538","#e95839","#ea5a3a","#eb5d3c","#ec5f3d","#ed613e","#ed643f","#ee6640","#ef6941","#f06b42","#f16e43","#f17044","#f27346","#f37547","#f37848","#f47a49","#f57d4a","#f57f4b","#f6824d","#f6844e","#f7864f","#f78950","#f88b51","#f88e53","#f89054","#f99355","#f99556","#f99858","#fa9a59","#fa9c5a","#fa9f5b","#fba15d","#fba35e","#fba660","#fba861","#fcaa62","#fcad64","#fcaf65","#fcb167","#fcb368","#fcb56a","#fdb86b","#fdba6d","#fdbc6e","#fdbe70","#fdc071","#fdc273","#fdc474","#fdc676","#fdc878","#fdca79","#fecc7b","#fecd7d","#fecf7e","#fed180","#fed382","#fed584","#fed685","#fed887","#feda89","#fedb8b","#fedd8d","#fede8f","#fee090","#fee192","#fee394","#fee496","#fee698","#fee79a","#fee89b","#feea9d","#feeb9f","#feeca0","#feeda2","#feeea3","#fdefa5","#fdf0a6","#fdf1a7","#fdf2a9","#fcf3aa","#fcf4ab","#fcf5ab","#fbf5ac","#fbf6ad","#faf6ad","#faf7ad","#f9f7ae","#f8f7ae","#f7f8ad","#f7f8ad","#f6f8ad","#f5f8ac","#f4f8ab","#f3f8ab","#f1f8aa","#f0f7a9","#eff7a8","#eef7a6","#edf6a5","#ebf6a4","#eaf6a2","#e8f5a1","#e7f59f","#e6f49d","#e4f39c","#e2f39a","#e1f298","#dff297","#def195","#dcf093","#daef92","#d9ef90","#d7ee8e","#d5ed8d","#d3ec8b","#d2ec89","#d0eb88","#ceea86","#cce985","#cae983","#c8e882","#c6e780","#c4e67f","#c2e57e","#c0e47c","#bee47b","#bce37a","#bae279","#b8e178","#b6e076","#b4df75","#b2de74","#b0dd73","#aedc72","#acdb71","#a9da70","#a7d970","#a5d86f","#a3d86e","#a0d76d","#9ed66c","#9cd56c","#99d36b","#97d26b","#95d16a","#92d069","#90cf69","#8ece68","#8bcd68","#89cc67","#86cb67","#84ca66","#81c966","#7fc866","#7cc665","#79c565","#77c464","#74c364","#71c263","#6fc063","#6cbf62","#69be62","#67bd62","#64bc61","#61ba60","#5eb960","#5cb85f","#59b65f","#56b55e","#53b45e","#51b25d","#4eb15c","#4baf5c","#48ae5b","#46ad5a","#43ab5a","#40aa59","#3da858","#3ba757","#38a557","#36a456","#33a255","#31a154","#2e9f54","#2c9d53","#2a9c52","#289a51","#259950","#23974f","#21954f","#1f944e","#1e924d","#1c904c","#1a8f4b","#188d4a","#178b49","#158948","#148747","#128646","#118446","#108245","#0e8044","#0d7e43","#0c7d42","#0b7b41","#0a7940","#08773f","#07753e","#06733d","#05713c","#04703b","#036e3a","#026c39","#016a38","#006837"].reverse());
-    
-        // Append a SVG element to body, then append a path for the boundaries
-        let mapAQI_CBSA_2020 = d3.select('#AQI_CBSA_Map').append("g")
-            .attr("width", "50%")
-            .attr("height", "50%")
-            .attr("transform", "translate(700,0)");
-        // select all path elements
-        mapAQI_CBSA_2020.selectAll('path')
-        // load our map data
-        .data(geojsonCBSA)
-        .enter()
-        .append('path')
-        // use a class for styling
-        .attr("class","path_geo")
-        // draw the map
-        .attr("d",geoPath)
-        // before the animation, start with white map
-        .attr("fill","white")
-        // tooltip
-        .on("mousemove",function (mouseData,d){
-            d3.select('#tooltip')
-                .style("opacity",.6)
-                .style("left",(mouseData.clientX+10).toString()+"px")
-                .style("top",(mouseData.clientY+10).toString()+"px")
-                .html(
-                    "<div class='tooltipData'>CBSA: "+aqi_cbsa_2020.get(d.properties.GEOID)[0].CBSA+"</div>" +
-                    "<div class='tooltipData'>90th Percentile AQI: "+aqi_cbsa_2020.get(d.properties.GEOID)[0]["90th Percentile AQI"]+"</div>" +
-                    "<div class='tooltipData'>Median AQI: "+aqi_cbsa_2020.get(d.properties.GEOID)[0]["Median AQI"]+"</div>" +
-                    "<div class='tooltipData'>Max AQI: "+aqi_cbsa_2020.get(d.properties.GEOID)[0]["Max AQI"]+"</div>")
-        })
-        .on("mouseout", function (){
-            d3.select('#tooltip')
-                .style("opacity",0)      
-        })      
-        // animation
-        // .transition()
-        // .delay(function(d,i){return i*2})
-        // .duration(800)
-        // fill with color 
-        .style("fill", function(d){
-            try{
-                return colorScale_AQI_CBSA_2020(parseInt(aqi_cbsa_2020.get(d.properties.GEOID)[0]["90th Percentile AQI"]));
-            }
-            catch(error){
-                //console.log(error);
-                return "white"
-            }
-        })
-        // zoom feature
-/*        d3.select('#AQI_CBSA_Map').call(d3.zoom()
-        .extent([[0,0],[1500,400]])
-        .scaleExtent([1,8])
-        .on("zoom",zoomed)
-        )
-        function zoomed({transform}){
-            mapAQI_CBSA_2020.attr("transform",transform)
-        }*/
-
-/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-        // make another map for march 2020 avg AQI
-        // the Air Quality Data in groups of county 
-        let mar2020_aqi = d3.group(data[3], function(d){return d["CBSA Code"];})
-
-        // set a range for 90th percentile aqi
-        let mar2020_aqi_extent = d3.extent(data[3], function(d){
-            return +d.AQI
-        })
-        
-        let colorScale_mar2020_aqi = d3.scaleQuantize()
-            .domain(mar2020_aqi_extent)
-            // diverging RdYlGn from https://observablehq.com/@d3/color-schemes
-            .range(["#a50026","#a70226","#a90426","#ab0626","#ad0826","#af0926","#b10b26","#b30d26","#b50f26","#b61127","#b81327","#ba1527","#bc1727","#be1927","#c01b27","#c21d28","#c41f28","#c52128","#c72328","#c92529","#cb2729","#cc2929","#ce2b2a","#d02d2a","#d12f2b","#d3312b","#d4332c","#d6352c","#d7382d","#d93a2e","#da3c2e","#dc3e2f","#dd4030","#de4331","#e04532","#e14733","#e24a33","#e34c34","#e44e35","#e55136","#e75337","#e85538","#e95839","#ea5a3a","#eb5d3c","#ec5f3d","#ed613e","#ed643f","#ee6640","#ef6941","#f06b42","#f16e43","#f17044","#f27346","#f37547","#f37848","#f47a49","#f57d4a","#f57f4b","#f6824d","#f6844e","#f7864f","#f78950","#f88b51","#f88e53","#f89054","#f99355","#f99556","#f99858","#fa9a59","#fa9c5a","#fa9f5b","#fba15d","#fba35e","#fba660","#fba861","#fcaa62","#fcad64","#fcaf65","#fcb167","#fcb368","#fcb56a","#fdb86b","#fdba6d","#fdbc6e","#fdbe70","#fdc071","#fdc273","#fdc474","#fdc676","#fdc878","#fdca79","#fecc7b","#fecd7d","#fecf7e","#fed180","#fed382","#fed584","#fed685","#fed887","#feda89","#fedb8b","#fedd8d","#fede8f","#fee090","#fee192","#fee394","#fee496","#fee698","#fee79a","#fee89b","#feea9d","#feeb9f","#feeca0","#feeda2","#feeea3","#fdefa5","#fdf0a6","#fdf1a7","#fdf2a9","#fcf3aa","#fcf4ab","#fcf5ab","#fbf5ac","#fbf6ad","#faf6ad","#faf7ad","#f9f7ae","#f8f7ae","#f7f8ad","#f7f8ad","#f6f8ad","#f5f8ac","#f4f8ab","#f3f8ab","#f1f8aa","#f0f7a9","#eff7a8","#eef7a6","#edf6a5","#ebf6a4","#eaf6a2","#e8f5a1","#e7f59f","#e6f49d","#e4f39c","#e2f39a","#e1f298","#dff297","#def195","#dcf093","#daef92","#d9ef90","#d7ee8e","#d5ed8d","#d3ec8b","#d2ec89","#d0eb88","#ceea86","#cce985","#cae983","#c8e882","#c6e780","#c4e67f","#c2e57e","#c0e47c","#bee47b","#bce37a","#bae279","#b8e178","#b6e076","#b4df75","#b2de74","#b0dd73","#aedc72","#acdb71","#a9da70","#a7d970","#a5d86f","#a3d86e","#a0d76d","#9ed66c","#9cd56c","#99d36b","#97d26b","#95d16a","#92d069","#90cf69","#8ece68","#8bcd68","#89cc67","#86cb67","#84ca66","#81c966","#7fc866","#7cc665","#79c565","#77c464","#74c364","#71c263","#6fc063","#6cbf62","#69be62","#67bd62","#64bc61","#61ba60","#5eb960","#5cb85f","#59b65f","#56b55e","#53b45e","#51b25d","#4eb15c","#4baf5c","#48ae5b","#46ad5a","#43ab5a","#40aa59","#3da858","#3ba757","#38a557","#36a456","#33a255","#31a154","#2e9f54","#2c9d53","#2a9c52","#289a51","#259950","#23974f","#21954f","#1f944e","#1e924d","#1c904c","#1a8f4b","#188d4a","#178b49","#158948","#148747","#128646","#118446","#108245","#0e8044","#0d7e43","#0c7d42","#0b7b41","#0a7940","#08773f","#07753e","#06733d","#05713c","#04703b","#036e3a","#026c39","#016a38","#006837"].reverse());
-    
-        // Append a SVG element to body, then append a path for the boundaries
-        let mapMar2020_aqi = d3.select('#month2020AQIMap').append("g")
-            .attr("width", "50%")
-            .attr("height", "50%")
-            .attr("transform", "translate(0,0)");
-        // select all path elements
-        mapMar2020_aqi.selectAll('path')
-        // load our map data
-        .data(geojsonCBSA)
-        .enter()
-        .append('path')
-        // use a class for styling
-        .attr("class","path_geo")
-        // draw the map
-        .attr("d",geoPath)
-        // before the animation, start with white map
-        .attr("fill","white")
-        // tooltip
-        .on("mousemove",function (mouseData,d){
-            d3.select('#tooltip')
-                .style("opacity",.6)
-                .style("left",(mouseData.clientX+window.pageXOffset).toString()+"px")
-                .style("top",(mouseData.clientY+window.pageYOffset).toString()+"px")
-                .html(
-                    "<div class='tooltipData'>Metro Area: "+mar2020_aqi.get(d.properties.GEOID)[0].CBSA+"</div>" +
-                    "<div class='tooltipData'>Avg AQI: "+Math.round(mar2020_aqi.get(d.properties.GEOID)[0].AQI)+"</div>")
-        })
-        .on("mouseout", function (){
-            d3.select('#tooltip')
-                .style("opacity",0)      
-        })      
-        // animation
-        // .transition()
-        // .delay(function(d,i){return i*2})
-        // .duration(800)
-        // fill with color 
-        .style("fill", function(d){
-            try{
-                return colorScale_mar2020_aqi(parseInt(mar2020_aqi.get(d.properties.GEOID)[0].AQI));
-            }
-            catch(error){
-                //console.log(error);
-                return "white"
-            }
-        })
-/*        // zoom feature
-        d3.select('#AQI_County_Map').call(d3.zoom()
-        .extent([[0,0],[1500,400]])
-        .scaleExtent([1,8])
-        .on("zoom",zoomed)
-        )
-        function zoomed({transform}){
-            mapAQI_CBSA_2020.attr("transform",transform)
-        }*/
-/*--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
-        // make another map for december 2020 avg AQI
-        // the Air Quality Data in groups of county 
-        let dec2020_aqi = d3.group(data[4], function(d){return d["CBSA Code"];})
-
-        // set a range for 90th percentile aqi
-        let dec2020_aqi_extent = d3.extent(data[4], function(d){
-            return +d.AQI
-        })
-        
-        let colorScale_dec2020_aqi = d3.scaleQuantize()
-            .domain(dec2020_aqi_extent)
-            // diverging RdYlGn from https://observablehq.com/@d3/color-schemes
-            .range(["#a50026","#a70226","#a90426","#ab0626","#ad0826","#af0926","#b10b26","#b30d26","#b50f26","#b61127","#b81327","#ba1527","#bc1727","#be1927","#c01b27","#c21d28","#c41f28","#c52128","#c72328","#c92529","#cb2729","#cc2929","#ce2b2a","#d02d2a","#d12f2b","#d3312b","#d4332c","#d6352c","#d7382d","#d93a2e","#da3c2e","#dc3e2f","#dd4030","#de4331","#e04532","#e14733","#e24a33","#e34c34","#e44e35","#e55136","#e75337","#e85538","#e95839","#ea5a3a","#eb5d3c","#ec5f3d","#ed613e","#ed643f","#ee6640","#ef6941","#f06b42","#f16e43","#f17044","#f27346","#f37547","#f37848","#f47a49","#f57d4a","#f57f4b","#f6824d","#f6844e","#f7864f","#f78950","#f88b51","#f88e53","#f89054","#f99355","#f99556","#f99858","#fa9a59","#fa9c5a","#fa9f5b","#fba15d","#fba35e","#fba660","#fba861","#fcaa62","#fcad64","#fcaf65","#fcb167","#fcb368","#fcb56a","#fdb86b","#fdba6d","#fdbc6e","#fdbe70","#fdc071","#fdc273","#fdc474","#fdc676","#fdc878","#fdca79","#fecc7b","#fecd7d","#fecf7e","#fed180","#fed382","#fed584","#fed685","#fed887","#feda89","#fedb8b","#fedd8d","#fede8f","#fee090","#fee192","#fee394","#fee496","#fee698","#fee79a","#fee89b","#feea9d","#feeb9f","#feeca0","#feeda2","#feeea3","#fdefa5","#fdf0a6","#fdf1a7","#fdf2a9","#fcf3aa","#fcf4ab","#fcf5ab","#fbf5ac","#fbf6ad","#faf6ad","#faf7ad","#f9f7ae","#f8f7ae","#f7f8ad","#f7f8ad","#f6f8ad","#f5f8ac","#f4f8ab","#f3f8ab","#f1f8aa","#f0f7a9","#eff7a8","#eef7a6","#edf6a5","#ebf6a4","#eaf6a2","#e8f5a1","#e7f59f","#e6f49d","#e4f39c","#e2f39a","#e1f298","#dff297","#def195","#dcf093","#daef92","#d9ef90","#d7ee8e","#d5ed8d","#d3ec8b","#d2ec89","#d0eb88","#ceea86","#cce985","#cae983","#c8e882","#c6e780","#c4e67f","#c2e57e","#c0e47c","#bee47b","#bce37a","#bae279","#b8e178","#b6e076","#b4df75","#b2de74","#b0dd73","#aedc72","#acdb71","#a9da70","#a7d970","#a5d86f","#a3d86e","#a0d76d","#9ed66c","#9cd56c","#99d36b","#97d26b","#95d16a","#92d069","#90cf69","#8ece68","#8bcd68","#89cc67","#86cb67","#84ca66","#81c966","#7fc866","#7cc665","#79c565","#77c464","#74c364","#71c263","#6fc063","#6cbf62","#69be62","#67bd62","#64bc61","#61ba60","#5eb960","#5cb85f","#59b65f","#56b55e","#53b45e","#51b25d","#4eb15c","#4baf5c","#48ae5b","#46ad5a","#43ab5a","#40aa59","#3da858","#3ba757","#38a557","#36a456","#33a255","#31a154","#2e9f54","#2c9d53","#2a9c52","#289a51","#259950","#23974f","#21954f","#1f944e","#1e924d","#1c904c","#1a8f4b","#188d4a","#178b49","#158948","#148747","#128646","#118446","#108245","#0e8044","#0d7e43","#0c7d42","#0b7b41","#0a7940","#08773f","#07753e","#06733d","#05713c","#04703b","#036e3a","#026c39","#016a38","#006837"].reverse());
-    
-        // Append a SVG element to body, then append a path for the boundaries
-        let mapDec2020_aqi = d3.select('#month2020AQIMap').append("g")
-            .attr("width", "50%")
-            .attr("height", "50%")
-            .attr("transform", "translate(700,0)");
-        // select all path elements
-        mapDec2020_aqi.selectAll('path')
-        // load our map data
-        .data(geojsonCBSA)
-        .enter()
-        .append('path')
-        // use a class for styling
-        .attr("class","path_geo")
-        // draw the map
-        .attr("d",geoPath)
-        // before the animation, start with white map
-        .attr("fill","white")
-        // tooltip
-        .on("mousemove",function (mouseData,d){
-            d3.select('#tooltip')
-                .style("opacity",.6)
-                .style("left",(mouseData.clientX+window.pageXOffset).toString()+"px")
-                .style("top",(mouseData.clientY+window.pageYOffset).toString()+"px")
-                .html(
-                    "<div class='tooltipData'>Metro Area: "+dec2020_aqi.get(d.properties.GEOID)[0].CBSA+"</div>" +
-                    "<div class='tooltipData'>Avg AQI: "+Math.round(dec2020_aqi.get(d.properties.GEOID)[0].AQI)+"</div>")
-        })
-        .on("mouseout", function (){
-            d3.select('#tooltip')
-                .style("opacity",0)      
-        })      
-        // animation
-        // .transition()
-        // .delay(function(d,i){return i*2})
-        // .duration(800)
-        // fill with color 
-        .style("fill", function(d){
-            try{
-                return colorScale_dec2020_aqi(parseInt(dec2020_aqi.get(d.properties.GEOID)[0].AQI));
-            }
-            catch(error){
-                //console.log(error);
-                return "white"
-            }
-        })
-/*        // zoom feature
-        d3.select('#AQI_County_Map').call(d3.zoom()
-        .extent([[0,0],[1500,400]])
-        .scaleExtent([1,8])
-        .on("zoom",zoomed)
-        )
-        function zoomed({transform}){
-            mapAQI_CBSA_2020.attr("transform",transform)
-        }*/
-
-
-
-    }
+              }
+            })
+    /*        // zoom feature
+            d3.select('#AQI_CBSA_Map').call(d3.zoom()
+            .extent([[0,0],[1500,400]])
+            .scaleExtent([1,8])
+            .on("zoom",zoomed)
+            )
+            function zoomed({transform}){
+                mapAQI_CBSA_2019.attr("transform",transform)
+            }*/
+  }
 
 </script>
 
