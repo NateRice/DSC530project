@@ -45,7 +45,19 @@
             box-shadow: 0 5px #666;
             transform: translateY(4px);
         }
-
+        .axes
+        {
+            font-size: 18px;
+        }
+        .legendtext
+        {
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .axis-grid line
+        {
+            stroke: #def;
+        }
         #selectable2019
         {
             float: left;
@@ -151,8 +163,7 @@
 
     // DATA SOURCES:
     // US Census Shapefiles: https://www.census.gov/cgi-bin/geo/shapefiles/index.php
-    // US EPA AirQuality Pre-generated data files: https://aqs.epa.gov/aqsweb/airdata/download_files.html#Annual
-    // https://aqs.epa.gov/aqsweb/airdata/download_files.html#AQI
+    // US EPA AirQuality Pre-generated data files: https://aqs.epa.gov/aqsweb/airdata/download_files.html#AQI
 
     // Source 1: US Census CBSA(Core-Based Statistical Areas) - Metropolitan/Micropolitan - shapefile converted to topojson and simplified using https://mapshaper.org/
     let topojsonCBSA = "./data/us_cbsa_simple_topo.json";
@@ -164,7 +175,7 @@
     let avgAQI2019 = "./data/monthlyAQI2019.csv";
 
     //source 4: 2020AQI with months
-    let avgAQI2020 = "./data/monthlyAQI2020.csv"; //  //source 9: full data for 2019
+    let avgAQI2020 = "./data/monthlyAQI2020.csv";
 
 
 	// raw source files for lazy edits, comment out the above section to use these
@@ -175,15 +186,18 @@
 	let avgAQI2019 = "https://raw.githubusercontent.com/NateRice/DSC530project/main/data/monthlyAQI2019.csv";
 	let avgAQI2020 = "https://raw.githubusercontent.com/NateRice/DSC530project/main/data/monthlyAQI2020.csv";
 	*/
-  
+
+
     // use a map projection then scale and translate to the center of the screen
     let projection = d3.geoAlbersUsa().scale(1000).translate([365,225])
     // use the map projection
     let geoPath = d3.geoPath().projection(projection);  
 
+    // default values on page load
     let selectedMonth = "Jan";
 	let selectedCBSA = "31080";
 	let selectedName = "Los Angeles-Long Beach-Anaheim, CA";
+
 	// dictionaries we kept adding in as we went along
     let monthNames = { // for titles
         "Jan":"January",
@@ -230,14 +244,13 @@
 	
     let aqiColors = ["#00e400","#ffff00","#ff7e00","#ff0000","#8f3f97","#7e0023"]; //EPA AQI official color categories
     let grays = ['#D8D8D8','#B4B4B4','#909090','#6C6C6C','#484848','#242424']; //grayscale
-    let colormap = aqiColors;
+    let colormap = aqiColors; // color scale in use
 
-	
 	let aqiGraph = ["#00A2E8","#ED1C24"]; // distinct colors for scatterplot
 	let grayGraph = ["#ACACAC","#555555"]; // grayscale
-	let colorplot = aqiGraph;
+	let colorplot = aqiGraph; // color scale in use
 
-    // use a promise function to load all data files and then perform actions defined by main function
+    // use a promise function to load all data files and then perform actions defined by following functions
     Promise.all([
             d3.json(topojsonCBSA),  // data[0] is CBSA json data
             d3.json(topojsonState), // data[1] is State json data
@@ -245,31 +258,29 @@
             d3.csv(avgAQI2020)      // data[3] is 2020 AQI data
 		]).then(function (data) {
 		let map2019 = choroplethMap(data,data[2],'#selectableAQIMap',"translate(0,0)")
-        let map2020 = choroplethMap(data,data[3],'#selectableAQIMap',"translate(750,0)") //700,0
-        let legend = legendAQI('#selectableAQIMap',"translate(625,280)") // 550,245 bottom right 1210,245
+        let map2020 = choroplethMap(data,data[3],'#selectableAQIMap',"translate(750,0)")
+        let legend = legendAQI('#selectableAQIMap',"translate(630,285)") // bottom right 1210,245
 		let scatterplot = scatter(data);
 		
-//------------------BUTTON CONTROL----------------------------------------------------------------------------------
-        // function to update month
+//------------------BUTTON CONTROL----------------------------------------------------------------------------------//
+        // function to update month after button click
         function updateMonth() {
 			let mname = monthNames[selectedMonth];
             d3.selectAll("#selectableAQIMap > *").remove();
             d3.select(".infobox .dataMonth").html("*** Select a month name to filter the data. *** Current Month: "+mname+"</p>");
             d3.select("#selectable2019").html("<h2>US AVG. AQI for " + mname + " 2019</h2>");
             d3.select("#selectable2020").html("<h2>US AVG. AQI for " + mname + " 2020</h2>");
-            d3.select('#selectableAQIMap')
             map2019 = choroplethMap(data,data[2],'#selectableAQIMap',"translate(0,0)")
             map2020 = choroplethMap(data,data[3],'#selectableAQIMap',"translate(750,0)")
-            legend = legendAQI('#selectableAQIMap',"translate(625,280)")
+            legend = legendAQI('#selectableAQIMap',"translate(630,285)")
         }
 
+        // function to update scatterplot after map region click
         function updateScatter() {
-            // this works when only clicking on buttons, but being outside of the choroplethMap() scope prevents us from changing regions
             d3.selectAll("#scatterplot > *").remove();
             scatterplot = scatter(data);
         }
 
-		
 		// month buttons
         let interface1 = d3.selectAll("#buttons");
         interface1.selectAll('buttons')
@@ -301,14 +312,11 @@
 				updateScatter()
             })
 
-
-
-
     // function to create legend, pass in div id where legend will take place
     // modified code from https://www.d3-graph-gallery.com/graph/custom_legend.html
     function legendAQI(divID,translate){
-        colormap2 = colormap
-        colormap2.push("#FFFFFF")
+        colormap2 = colormap // needed to update to add the white no data
+        colormap2.push("#FFFFFF") // add white
         let mapLegend = d3.select(divID).append("g")
             .attr("transform", translate)
         let keys = ["Good 0-50","Moderate 51-100","Unhealthy for Sensitive Groups 101-150","Unhealthy 151-200",
@@ -332,15 +340,15 @@
             .enter()
             .append("text")
             .attr("class","caption")
-            .attr("x", 10 + size*1.2)
+            .attr("x", 5 +size)
             .attr("y", function(d,i){return 15 + i*(size+5) + (size/2)})
             .style("fill", "black")
             .text(function(d){return d})
             .attr("text-anchor", "left")
             .style("alignment-baseline", "middle")
+            .style("font-size","14px")
 
     }
-
 
     //---------------------Draw the Choropleth Map-----------------------------------------------------------------------------------
     // function to draw a Choropleth Map of AQI data
@@ -384,7 +392,7 @@
             .range(colormap)
 
 
-        // Append a SVG element to body, then append a path for the boundaries
+        // Select the div/svg and append group, then append a path for the boundaries
         let mapAQI_CBSA = d3.select(divID).append("g")
             .attr("transform", translate);
 
@@ -398,8 +406,6 @@
             .attr("class", "path_geo")
             // draw the map
             .attr("d", geoPath)
-            // before the animation, start with white map
-            //.attr("fill", "white")
             // tooltip
             .on("mousemove", function (mouseData, d) {
                 try {
@@ -432,13 +438,8 @@
 				catch (error) {
 					selectedName = d.properties.NAMELSAD;
 				}
-				updateScatter(); // FIX THIS!
+				updateScatter();
 			})
-
-            // animation
-            // .transition()
-            // .delay(function(d,i){return i*2})
-            // .duration(800)
 
             // fill with color
             .style("fill", function (d) {
@@ -450,15 +451,6 @@
                     return "white"
                 }
             })
-            /*    // zoom feature
-                  d3.select('#selectableAQIMap').call(d3.zoom()
-                  .extent([[0,0],[1500,400]])
-                  .scaleExtent([1,8])
-                  .on("zoom",zoomed)
-                  )
-                  function zoomed({transform}){
-                      mapAQI_CBSA.attr("transform",transform)
-                  }*/
         }
     }) // end of Promise.then(function (data) {
 
@@ -466,121 +458,116 @@
 		// modified code from https://www.d3-graph-gallery.com/graph/connectedscatter_legend.html
 		function scatter(data){
             let dataFull = [{name:"2019",values:data[2]},{name:"2020",values:data[3]}];
+		    d3.select("#scatterhead").html("<h2>AVG. AQI for "+selectedName+" (CBSA: "+selectedCBSA+")</h2>");
+		    // filter the data by CBSA Code
+    	    // console.log(selectedCBSA)
+            let ymax = 0;
+            for (var i=0; i<dataFull.length; i++) {
+                dataFull[i].values = dataFull[i].values.filter(function (d) {
+                    return d["CBSA Code"] === selectedCBSA
+                })
+                ymax = Math.max(ymax,d3.max(dataFull[i].values, function(d) { return +d.AQI; }))
+            }
 
-					//d3.selectAll("#scatterplot").remove();
-					d3.select("#scatterhead").html("<h2>AVG. AQI for "+selectedName+" (CBSA: "+selectedCBSA+")</h2>");
-		
-					// filter the data by CBSA Code
-					// console.log(selectedCBSA)
-					let ymax = 0;
-					for (var i=0; i<dataFull.length; i++) {
-						dataFull[i].values = dataFull[i].values.filter(function (d) {
-							return d["CBSA Code"] === selectedCBSA
-						})
-						ymax = Math.max(ymax,d3.max(dataFull[i].values, function(d) { return +d.AQI; }))
-					}
-					
-                    const margin = {top:20 , bottom: 20 , left: 50 ,right: 20};
-					const height = 500 - margin.top - margin.bottom;
-					const width = 1200 - margin.left - margin.right;
-                    
-					// append the svg object to the body of the page
-					let svg = d3.select("#scatterplot")
-					  .append("svg")
-						.attr("width", width + margin.left + margin.right)
-						.attr("height", height + margin.top + margin.bottom)
-					  .append("g")
-						.attr("transform",`translate(${margin.left},${margin.top})`);
-					// colors
-					const color = d3.scaleOrdinal()
-						.domain([0,dataFull.length-1])
-						.range(colorplot);
-					
-					// x axis stuff
-					const x = d3.scaleLinear()
-					  .domain([1,12])
-					  .range([0,width]);
-					svg.append("g")
-					  .attr("transform", `translate(0, ${height})`)
-					  .call(d3.axisBottom(x).tickFormat(function (d) {
-							return numMonth[d];
-						}));
+            const margin = {top:20 , bottom: 25 , left: 50 ,right: 50};
+            const height = 500 - margin.top - margin.bottom;
+            const width = 1200 - margin.left - margin.right;
 
-					// y axis stuff
-					const y = d3.scaleLinear()
-					  .domain([0,ymax*1.05])
-					  .range([height,0]);
-					svg.append("g")
-					  .call(d3.axisLeft(y));
-					svg.append("g")
-					  .call(d3.axisRight(y))
-					  .attr("transform", `translate(${width}, 0)`);
+            // append the svg object to the body of the page
+            let svg = d3.select("#scatterplot")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform",`translate(${margin.left},${margin.top})`);
 
-					// draw lines
-					const line = d3.line()
-					  .x(d => x(+d.month))
-					  .y(d => y(+d.AQI))
-					svg.selectAll("dataLines")
-					  .data(dataFull)
-					  .join("path")
-						.attr("class", d => "AQI"+d.name)
-						.attr("d", d => line(d.values))
-						.attr("stroke", d => color(d.name))
-						.style("stroke-width", 3)
-						.style("fill", "none")
-						
-					// draw points
-					svg
-					  // First we need to enter in a group
-					  .selectAll("dataPoints")
-					  .data(dataFull)
-					  .join('g')
-						.style("fill", d => color(d.name))
-						.attr("class", d => "AQI"+d.name)
-					  // Second we need to enter in the 'values' part of this group
-					  .selectAll("dataPoints")
-					  .data(d => d.values)
-					  .join("circle")
-						.attr("cx", d => x(d.month))
-						.attr("cy", d => y(d.AQI))
-						.attr("r", 5)
-						.attr("stroke", "white")
-					
-					/*
-					// Add a label at the end of each line
-					svg
-					  .selectAll("dataLabels")
-					  .data(data)
-					  .join('g')
-						.append("text")
-						  .attr("class", d => d.name)
-						  .datum(d => { return {name: d.name, value: d.values[d.values.length - 1]}; }) // keep only the last value of each time series
-						  .attr("transform", d => `translate(${x(d.value.month)},${y(d.value.AQI)})`) // Put the text at the position of the last point
-						  .attr("x", 12) // shift the text a bit more right
-						  .text(d => d.name)
-						  .style("fill", d => color(d.name))
-						  .style("font-size", 15)
-					*/
-					// Add a legend (interactive)
-					svg
-					  .selectAll("dataLegend")
-					  .data(dataFull)
-					  .join('g')
-						.append("text")
-						  .attr('x', (d,j) => 5+ j*100)
-						  .attr('y', 10)
-						  .text(d => "AQI in "+d.name)
-						  .style("fill", d => color(d.name))
-						  //.style("font-size", 16) // doesn't seem to matter
-						  .style("font-weight","bold")
-						.on("click", function(event,d){
-						  // is the element currently visible ?
-						  currentOpacity = d3.selectAll(".AQI" + d.name).style("opacity") // fails if class name starts with a number (hence "AQI"+ in this section)
-						  // Change the opacity: from 0 to 1 or from 1 to 0
-						  d3.selectAll(".AQI" + d.name).transition().style("opacity", currentOpacity == 1 ? 0:1)
-						})
-                }
+            // colors
+            const color = d3.scaleOrdinal()
+                .domain([0,dataFull.length-1])
+                .range(colorplot);
 
+            // create x axis scale
+            const x = d3.scaleLinear().domain([1,12]).range([0,width]);
+            // create y axis scale
+            const y = d3.scaleLinear().domain([0,ymax*1.05]).range([height,0]);
+
+            // create grid lines
+            const xAxisGrid = d3.axisBottom(x).tickSize(-height).tickFormat('');
+            const yAxisGrid = d3.axisLeft(y).tickSize(-width).tickFormat('');
+            // render grid axes
+            svg.append('g')
+                .attr("class", "x axis-grid")
+                .attr("transform", `translate(0, ${height})`)
+                .call(xAxisGrid);
+            svg.append('g')
+                .attr("class", "y axis-grid")
+                .call(yAxisGrid)
+
+            // add x-axis
+            svg.append("g")
+                .attr("class","axes")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x).tickFormat(function (d) {
+                    return numMonth[d];
+                }));
+
+            // Add y-axis
+            svg.append("g")
+                .attr("class","axes")
+                .call(d3.axisLeft(y));
+            svg.append("g")
+                .attr("class","axes")
+                .call(d3.axisRight(y))
+                .attr("transform", `translate(${width}, 0)`);
+            // draw lines
+            const line = d3.line()
+                .x(d => x(+d.month))
+                .y(d => y(+d.AQI))
+            svg.selectAll("dataLines")
+                .data(dataFull)
+                .join("path")
+                .attr("class", d => "AQI"+d.name)
+                .attr("d", d => line(d.values))
+                .attr("stroke", d => color(d.name))
+                .style("stroke-width", 3)
+                .style("fill", "none")
+
+            // draw points
+            svg
+                // First we need to enter in a group
+                .selectAll("dataPoints")
+                .data(dataFull)
+                .join('g')
+                .style("fill", d => color(d.name))
+                .attr("class", d => "AQI"+d.name)
+                // Second we need to enter in the 'values' part of this group
+                .selectAll("dataPoints")
+                .data(d => d.values)
+                .join("circle")
+                .attr("cx", d => x(d.month))
+                .attr("cy", d => y(d.AQI))
+                .attr("r", 5)
+                .attr("stroke", "white")
+
+            // Add a legend (interactive)
+			svg
+			  .selectAll("dataLegend")
+			  .data(dataFull)
+			  .join('g')
+				.append("text")
+                .attr("class", "legendtext")
+                .attr('x', (d,j) => 5+ j*120)
+                .attr('y', 20)
+                .text(d => "AQI in "+d.name)
+                .style("fill", d => color(d.name))
+                .style("font-weight","bold")
+                .on("click", function(event,d){
+                    // is the element currently visible ?
+                    currentOpacity = d3.selectAll(".AQI" + d.name).style("opacity") // fails if class name starts with a number (hence "AQI"+ in this section)
+                    // Change the opacity: from 0 to 1 or from 1 to 0
+                    d3.selectAll(".AQI" + d.name).transition().style("opacity", currentOpacity == 1 ? 0:1)
+                })
+        }
 </script>
 </body>
 </html>
