@@ -72,7 +72,18 @@
             background-color: black;
             color: #fff;
             position: absolute;
-            width: 350px;
+            width: 120px;
+            text-align: center;
+            padding: 5px 0;
+            border-radius: 6px;
+        }
+        #rightTooltip
+        {
+            opacity: 0;
+            background-color: black;
+            color: #fff;
+            position: absolute;
+            width: 120px;
             text-align: center;
             padding: 5px 0;
             border-radius: 6px;
@@ -97,6 +108,7 @@
             height: 100%;
             background: #fcfcfc;
             fill: none;
+            display: block;
         }
         path.path_geo
         {
@@ -151,6 +163,7 @@
         As of March 2020, there are 384 metropolitan statistical areas and 543 micropolitan statistical areas in the United States.</p>
 </div>
 <div id="tooltip"></div>
+<div id="rightTooltip"></div>
 
 <script>
     // dimension of the page
@@ -409,25 +422,48 @@
             // tooltip
             .on("mousemove", function (mouseData, d) {
                 try {
-                    d3.select('#tooltip')
-                    .style("opacity", .6)
-                    .style("left", (mouseData.clientX + window.pageXOffset).toString() + "px")
-                    .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
-                    .html(
-                          "<div class='tooltipData'>Metro Area: " + aqi_cbsa_group.get(d.properties.GEOID)[0].CBSA + "</div>" +
-                          "<div class='tooltipData'>Avg AQI: " + Math.round(aqi_cbsa_group.get(d.properties.GEOID)[0].AQI) + "</div>")
+                    if (mouseData.clientX >= 1200){
+                        d3.select('#rightTooltip')
+                        .style("opacity", .6)
+                        .style("left", (mouseData.clientX + window.pageXOffset - 120).toString() + "px")
+                        .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
+                        .html(
+                            "<div class='tooltipData'>CBSA: " + aqi_cbsa_group.get(d.properties.GEOID)[0].CBSA + "</div>" +
+                            "<div class='tooltipData'>Avg AQI: " + Math.round(aqi_cbsa_group.get(d.properties.GEOID)[0].AQI) + "</div>")
                     }
-                    catch (error) {
-                    d3.select('#tooltip')
+                    else{d3.select('#tooltip')
                     .style("opacity", .6)
-                    .style("left", (mouseData.clientX + window.pageXOffset).toString() + "px")
+                    .style("left", (15+mouseData.clientX + window.pageXOffset).toString() + "px")
                     .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
+/*                    .style("left", (mouseData.clientX + window.pageXOffset).toString() + "px")
+                    .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")*/
                     .html(
-                          "<div class='tooltipData'>CBSA: " + d.properties.GEOID + "  " + d.properties.NAMELSAD + "  " + " NO DATA" + "</div>")
+                          "<div class='tooltipData'>CBSA: " + aqi_cbsa_group.get(d.properties.GEOID)[0].CBSA + "</div>" +
+                          "<div class='tooltipData'>Avg AQI: " + Math.round(aqi_cbsa_group.get(d.properties.GEOID)[0].AQI) + "</div>")
+                    }}
+                    catch (error) {
+                        if (mouseData.clientX >= 1200) {
+                            d3.select('#rightTooltip')
+                                .style("opacity", .6)
+                                .style("left", (mouseData.clientX + window.pageXOffset-120).toString() + "px")
+                                .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
+                                .html(
+                                    "<div class='tooltipData'>CBSA: " + d.properties.GEOID + "  " + d.properties.NAMELSAD + "  " + " NO DATA" + "</div>")
+                        } else {
+                            d3.select('#tooltip')
+                                .style("opacity", .6)
+                                .style("left", (mouseData.clientX + window.pageXOffset).toString() + "px")
+                                .style("top", (mouseData.clientY + window.pageYOffset).toString() + "px")
+                                .html(
+                                    "<div class='tooltipData'>CBSA: " + d.properties.GEOID + "  " + d.properties.NAMELSAD + "  " + " NO DATA" + "</div>")
+
+                        }
                     }
             })
             .on("mouseout", function () {
-            d3.select('#tooltip')
+            d3.selectAll('#tooltip')
+                .style("opacity", 0)
+            d3.selectAll('#rightTooltip')
                 .style("opacity", 0)
             })
 			.on("click", function(data,d) {
